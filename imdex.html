@@ -1,1 +1,740 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kosatka Tactical Terminal // Cayo Perico</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-space: #07090c;
+      --screen-bg: #0d1117;
+      --orange-main: #ff6a00;
+      --orange-bright: #ff851a;
+      --orange-dim: #994000;
+      --orange-dark: #2a1505;
+      --text-white: #ededed;
+      --text-muted: #8c8f94;
+      --crt-scanline: rgba(0, 0, 0, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-space);
+      color: var(--text-white);
+      font-family: 'Chakra Petch', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+      overflow-x: hidden;
+    }
+
+    /* Корпус монитора Косатки */
+    .terminal-bezel {
+      background: #14171d;
+      border: 10px solid #1f242c;
+      border-radius: 12px;
+      box-shadow: 0 0 60px rgba(0, 0, 0, 0.9), inset 0 0 20px rgba(0,0,0,0.8);
+      position: relative;
+      width: 100%;
+      max-width: 1240px;
+      aspect-ratio: 16 / 9;
+      min-height: 700px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Эффект ЭЛТ-монитора */
+    .crt-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, var(--crt-scanline) 50%),
+                  linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+      background-size: 100% 4px, 6px 100%;
+      pointer-events: none;
+      z-index: 50;
+      opacity: 0.75;
+    }
+
+    /* Внутренний каркас дисплея */
+    .screen-wrapper {
+      position: relative;
+      background: radial-gradient(circle at center, #111722 0%, #080b0f 100%);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 24px;
+      z-index: 10;
+    }
+
+    .hud-border {
+      position: absolute;
+      border: 2px solid var(--orange-main);
+      box-shadow: inset 0 0 15px rgba(255, 106, 0, 0.2), 0 0 15px rgba(255, 106, 0, 0.25);
+      inset: 16px;
+      pointer-events: none;
+    }
+
+    /* Верхний блок: Табы и Выплаты */
+    .hud-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 16px;
+      position: relative;
+      z-index: 20;
+    }
+
+    .tab-group {
+      display: flex;
+      gap: 4px;
+    }
+
+    .tab-btn {
+      background: rgba(42, 21, 5, 0.7);
+      color: var(--orange-main);
+      border: 1px solid var(--orange-dim);
+      font-family: 'Chakra Petch', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      padding: 8px 26px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: all 0.15s ease;
+    }
+
+    .tab-btn.active {
+      background: var(--orange-main);
+      color: #000;
+      border-color: var(--orange-bright);
+      box-shadow: 0 0 15px rgba(255, 106, 0, 0.6);
+    }
+
+    .payout-box {
+      border: 2px solid var(--orange-main);
+      background: rgba(10, 13, 18, 0.9);
+      width: 250px;
+      text-align: right;
+      padding: 8px 12px;
+    }
+
+    .payout-row {
+      margin-bottom: 6px;
+    }
+
+    .payout-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .payout-label {
+      background: var(--orange-main);
+      color: #000;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 2px 6px;
+      text-transform: uppercase;
+      display: inline-block;
+      margin-bottom: 3px;
+    }
+
+    .payout-value {
+      font-family: 'Share Tech Mono', monospace;
+      color: #fff;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+    }
+
+    /* Главная рабочая сетка */
+    .terminal-body {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 24px;
+      flex: 1;
+      position: relative;
+      z-index: 20;
+      min-height: 0;
+    }
+
+    /* Левая колонка: списки и превью */
+    .left-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel-box {
+      border: 1px solid var(--orange-dim);
+      background: rgba(13, 17, 23, 0.85);
+      box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.8);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .category-header {
+      background: rgba(42, 21, 5, 0.85);
+      border-bottom: 1px solid var(--orange-dim);
+      padding: 8px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--orange-main);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+    }
+
+    .item-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      max-height: 250px;
+    }
+
+    .item-row {
+      padding: 9px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      border-bottom: 1px solid rgba(255, 106, 0, 0.1);
+      color: #ccc;
+      transition: all 0.1s ease;
+    }
+
+    .item-row:hover {
+      background: rgba(255, 106, 0, 0.15);
+      color: #fff;
+    }
+
+    .item-row.selected {
+      background: #fff;
+      color: #000;
+      font-weight: 700;
+    }
+
+    .status-marker {
+      width: 10px;
+      height: 10px;
+      border: 1px solid var(--orange-main);
+      background: transparent;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .status-marker.checked {
+      background: var(--orange-main);
+      box-shadow: 0 0 6px var(--orange-bright);
+    }
+
+    /* Блок фото превью снизу слева */
+    .preview-box {
+      border: 1px solid var(--orange-dim);
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      height: 200px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .preview-img-container {
+      flex: 1;
+      position: relative;
+      background: #080a0d;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .preview-img-container img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: grayscale(1) contrast(1.5) brightness(0.9);
+      mix-blend-mode: luminosity;
+    }
+
+    .preview-overlay {
+      position: absolute;
+      inset: 0;
+      border: 1px solid rgba(255, 106, 0, 0.3);
+      pointer-events: none;
+    }
+
+    .preview-caption {
+      background: rgba(20, 10, 5, 0.95);
+      border-top: 1px solid var(--orange-dim);
+      padding: 6px 10px;
+      color: var(--orange-main);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    /* Правая колонка: Карта острова */
+    .map-container {
+      border: 1px solid var(--orange-dim);
+      background: rgba(7, 10, 15, 0.9);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: inset 0 0 30px rgba(0,0,0,0.9);
+    }
+
+    .map-telemetry {
+      position: absolute;
+      top: 12px;
+      left: 14px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      color: var(--orange-dim);
+      line-height: 1.4;
+      pointer-events: none;
+      z-index: 25;
+    }
+
+    .map-viewport {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    svg.tactical-map {
+      width: 100%;
+      height: 100%;
+      max-height: 480px;
+      filter: drop-shadow(0 0 6px rgba(255, 106, 0, 0.4));
+    }
+
+    .map-island-contour {
+      stroke: var(--orange-main);
+      stroke-width: 1.5;
+      fill: rgba(255, 106, 0, 0.04);
+      stroke-linejoin: round;
+    }
+
+    .map-grid-line {
+      stroke: rgba(255, 106, 0, 0.15);
+      stroke-dasharray: 4, 4;
+    }
+
+    .map-compound {
+      fill: var(--orange-main);
+      opacity: 0.9;
+      cursor: pointer;
+    }
+
+    /* Маркеры на карте */
+    .map-marker {
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .map-marker:hover {
+      transform: scale(1.3);
+    }
+
+    .map-mode-toggle {
+      position: absolute;
+      right: 14px;
+      bottom: 14px;
+      background: rgba(0, 0, 0, 0.8);
+      border: 1px solid var(--orange-main);
+      color: var(--orange-main);
+      font-family: 'Chakra Petch', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 6px 14px;
+      cursor: pointer;
+      text-transform: uppercase;
+      z-index: 30;
+    }
+
+    .map-mode-toggle:hover {
+      background: var(--orange-main);
+      color: #000;
+    }
+
+    /* Нижний консольный бар */
+    .hud-footer {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 20px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255, 106, 0, 0.2);
+      margin-top: 10px;
+      position: relative;
+      z-index: 20;
+    }
+
+    .gamepad-hint {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: #ddd;
+      text-transform: uppercase;
+    }
+
+    .btn-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 22px;
+      height: 22px;
+      border: 1px solid #aaa;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      padding: 0 4px;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-badge.circle-btn {
+      border-radius: 50%;
+      border-color: #f55;
+      color: #f55;
+    }
+
+    .btn-badge.x-btn {
+      border-radius: 50%;
+      border-color: #5af;
+      color: #5af;
+    }
+
+    .btn-badge.sq-btn {
+      border-color: #fa5;
+      color: #fa5;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="terminal-bezel">
+    <div class="crt-overlay"></div>
+    <div class="screen-wrapper">
+      <div class="hud-border"></div>
+
+      <!-- Header: Табы и профит -->
+      <header class="hud-header">
+        <nav class="tab-group">
+          <button class="tab-btn active" id="tab-data" onclick="switchTab('data')">Данные</button>
+          <button class="tab-btn" id="tab-prep" onclick="switchTab('prep')">Подготовка</button>
+        </nav>
+
+        <div class="payout-box">
+          <div class="payout-row">
+            <span class="payout-label" id="primary-target-title">Текила "Синсимито"</span>
+            <div class="payout-value" id="primary-target-val">$900,000</div>
+          </div>
+          <div class="payout-row">
+            <span class="payout-label">Второстепенные цели</span>
+            <div class="payout-value" id="secondary-targets-val">$1,259,160</div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Основная сетка -->
+      <main class="terminal-body">
+        <!-- Левая часть: списки и фото -->
+        <section class="left-panel">
+          <div class="panel-box">
+            <div class="category-header">
+              <span id="category-title">&lt; ТОЧКИ ПРОНИКНОВЕНИЯ</span>
+              <span id="category-counter">6 / 8</span>
+            </div>
+            <ul class="item-list" id="screen-items">
+              <!-- Рендерится через JS -->
+            </ul>
+          </div>
+
+          <div class="preview-box">
+            <div class="preview-img-container">
+              <img id="preview-image" src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80" alt="Разведка">
+              <div class="preview-overlay"></div>
+            </div>
+            <div class="preview-caption" id="preview-text">Взлетная полоса</div>
+          </div>
+        </section>
+
+        <!-- Правая часть: Тактическая карта -->
+        <section class="map-container">
+          <div class="map-telemetry">
+            GRID: 412.895 / 34<br>
+            LAT: 24.238 N<br>
+            LONG: 77.892 W<br>
+            STATUS: ACTIVE
+          </div>
+
+          <div class="map-viewport" id="map-view">
+            <!-- Векторный контур острова Кайо-Перико -->
+            <svg class="tactical-map" viewBox="0 0 500 500">
+              <!-- Сетка и кольца радара -->
+              <circle cx="250" cy="250" r="230" fill="none" stroke="rgba(255, 106, 0, 0.1)" stroke-width="1" />
+              <circle cx="250" cy="250" r="150" fill="none" stroke="rgba(255, 106, 0, 0.08)" stroke-width="1" stroke-dasharray="6,6" />
+              <circle cx="250" cy="250" r="80" fill="none" stroke="rgba(255, 106, 0, 0.06)" stroke-width="1" />
+              
+              <line x1="20" y1="250" x2="480" y2="250" class="map-grid-line" />
+              <line x1="250" y1="20" x2="250" y2="480" class="map-grid-line" />
+
+              <!-- Остров Кайо-Перико -->
+              <path class="map-island-contour" d="
+                M 120 160 
+                C 140 140, 200 130, 250 80 
+                C 280 60, 310 90, 330 140
+                C 345 170, 320 200, 310 240
+                C 330 280, 360 320, 320 400
+                C 300 440, 280 430, 260 370
+                C 240 330, 260 290, 240 240
+                C 220 220, 180 230, 170 210
+                C 150 190, 110 180, 120 160 Z
+              " />
+
+              <!-- Взлетно-посадочная полоса -->
+              <polygon points="120,165 240,120 245,128 125,173" fill="none" stroke="var(--orange-main)" stroke-width="1.2" stroke-dasharray="3,3" />
+
+              <!-- Резиденция Эль Рубио (Особняк) -->
+              <polygon class="map-compound" points="275,360 315,355 320,385 280,390" onclick="toggleCompoundView()" />
+
+              <!-- Метки на карте -->
+              <g id="dynamic-markers">
+                <!-- Точки инфильтрации и цели -->
+                <polygon class="map-marker" points="125,170 120,180 130,180" fill="#fff" stroke="#ff6a00" stroke-width="1" />
+                <polygon class="map-marker" points="310,135 305,145 315,145" fill="#fff" stroke="#ff6a00" stroke-width="1" />
+                <polygon class="map-marker" points="230,235 225,245 235,245" fill="#fff" stroke="#ff6a00" stroke-width="1" />
+                <polygon class="map-marker" points="295,370 290,380 300,380" fill="#fff" stroke="#000" stroke-width="1" />
+              </g>
+            </svg>
+          </div>
+
+          <button class="map-mode-toggle" id="toggle-map-btn" onclick="toggleCompoundView()">План: Остров / Особняк</button>
+        </section>
+      </main>
+
+      <!-- Консольный статус-бар -->
+      <footer class="hud-footer">
+        <div class="gamepad-hint"><span class="btn-badge">L</span> Перейти</div>
+        <div class="gamepad-hint"><span class="btn-badge">L1</span> <span class="btn-badge">R1</span> Экраны</div>
+        <div class="gamepad-hint"><span class="btn-badge sq-btn">□</span> Карта</div>
+        <div class="gamepad-hint"><span class="btn-badge circle-btn">○</span> Назад</div>
+        <div class="gamepad-hint"><span class="btn-badge x-btn">✕</span> Выбрать</div>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    // База данных экрана ограбления
+    const terminalData = {
+      data: [
+        {
+          id: 'airstrip',
+          title: 'Взлетная полоса',
+          checked: true,
+          category: '< ТОЧКИ ПРОНИКНОВЕНИЯ',
+          counter: '6 / 8',
+          caption: 'Точка проникновения: Взлетная полоса',
+          img: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80'
+        },
+        {
+          id: 'halo',
+          title: 'Высадка с воздуха',
+          checked: true,
+          category: '< ТОЧКИ ПРОНИКНОВЕНИЯ',
+          counter: '6 / 8',
+          caption: 'Точка проникновения: Высадка с воздуха',
+          img: 'https://images.unsplash.com/photo-1508614589041-895b88991e3e?auto=format&fit=crop&w=600&q=80'
+        },
+        {
+          id: 'west_beach',
+          title: 'Западный пляж',
+          checked: true,
+          category: '< ТОЧКИ ПРОНИКНОВЕНИЯ',
+          counter: '6 / 8',
+          caption: 'Точка проникновения: Западный пляж',
+          img: 'https://images.unsplash.com/photo-1519046904884-53103b34b206?auto=format&fit=crop&w=600&q=80'
+        },
+        {
+          id: 'main_dock',
+          title: 'Главный док',
+          checked: true,
+          category: '< ТОЧКИ ПРОНИКНОВЕНИЯ',
+          counter: '6 / 8',
+          caption: 'Точка проникновения: Главный док',
+          img: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=600&q=80'
+        },
+        {
+          id: 'north_dock',
+          title: 'Северный док',
+          checked: true,
+          category: '< ТОЧКИ ПРОНИКНОВЕНИЯ',
+          counter: '6 / 8',
+          caption: 'Точка проникновения: Северный док',
+          img: 'https://images.unsplash.com/photo-1559136555-9303baea8ebd?auto=format&fit=crop&w=600&q=80'
+        },
+        {
+          id: 'drainage_tunnel',
+          title: 'Канализационный тоннель',
+          checked: true,
+          category: '< ТОЧКИ ПРОНИКНОВЕНИЯ',
+          counter: '6 / 8',
+          caption: 'Инфильтрация: Канализационный тоннель',
+          img: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80'
+        }
+      ],
+      prep: [
+        {
+          id: 'sub',
+          title: 'Косатка (Торпедный аппарат)',
+          checked: true,
+          category: '< ТРАНСПОРТ ДОСТАВКИ',
+          counter: '1 / 5',
+          caption: 'Подводная лодка RUNE Kosatka',
+          img: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80'
+        },
+        {
+          id: 'plasma',
+          title: 'Плазморез',
+          checked: true,
+          category: '< СНАРЯЖЕНИЕ',
+          counter: '4 / 4',
+          caption: 'Плазморез для витрины',
+          img: 'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?auto=format&fit=crop&w=600&q=80'
+        },
+        {
+          id: 'fingerprint',
+          title: 'Дубликатор отпечатков',
+          checked: true,
+          category: '< СНАРЯЖЕНИЕ',
+          counter: '4 / 4',
+          caption: 'Клонер ключ-карт архива',
+          img: 'https://images.unsplash.com/photo-1563770660941-20978e870e26?auto=format&fit=crop&w=600&q=80'
+        },
+        {
+          id: 'torch',
+          title: 'Резак для решеток',
+          checked: true,
+          category: '< СНАРЯЖЕНИЕ',
+          counter: '4 / 4',
+          caption: 'Автоген для проникновения',
+          img: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=600&q=80'
+        },
+        {
+          id: 'weapons',
+          title: 'Заговорщик (Комплект оружия)',
+          checked: true,
+          category: '< РАСКЛАДКА ОРУЖИЯ',
+          counter: '1 / 1',
+          caption: 'Винтовка, AP Pistol, Глушители',
+          img: 'https://images.unsplash.com/photo-1595590424283-b8f17842773f?auto=format&fit=crop&w=600&q=80'
+        }
+      ]
+    };
+
+    let currentTab = 'data';
+    let selectedIndex = 0;
+    let isCompoundMode = false;
+
+    function renderList() {
+      const items = terminalData[currentTab];
+      const listEl = document.getElementById('screen-items');
+      listEl.innerHTML = '';
+
+      const activeItem = items[selectedIndex] || items[0];
+      document.getElementById('category-title').textContent = activeItem.category;
+      document.getElementById('category-counter').textContent = activeItem.counter;
+
+      items.forEach((item, idx) => {
+        const li = document.createElement('li');
+        li.className = `item-row ${idx === selectedIndex ? 'selected' : ''}`;
+        li.onclick = () => selectItem(idx);
+        
+        li.innerHTML = `
+          <span class="status-marker ${item.checked ? 'checked' : ''}"></span>
+          <span>${item.title}</span>
+        `;
+        listEl.appendChild(li);
+      });
+
+      updatePreview(activeItem);
+    }
+
+    function selectItem(idx) {
+      selectedIndex = idx;
+      renderList();
+    }
+
+    function updatePreview(item) {
+      if (!item) return;
+      document.getElementById('preview-text').textContent = item.caption;
+      document.getElementById('preview-image').src = item.img;
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      selectedIndex = 0;
+      document.getElementById('tab-data').classList.toggle('active', tab === 'data');
+      document.getElementById('tab-prep').classList.toggle('active', tab === 'prep');
+      renderList();
+    }
+
+    function toggleCompoundView() {
+      isCompoundMode = !isCompoundMode;
+      const mapView = document.getElementById('map-view');
+      const toggleBtn = document.getElementById('toggle-map-btn');
+
+      if (isCompoundMode) {
+        toggleBtn.textContent = 'Назад к острову';
+        mapView.innerHTML = `
+          <svg class="tactical-map" viewBox="0 0 500 500">
+            <!-- План резиденции Эль Рубио -->
+            <rect x="140" y="110" width="220" height="280" fill="rgba(255,106,0,0.05)" stroke="var(--orange-main)" stroke-width="2"/>
+            <polygon points="170,140 250,140 250,220 170,220" fill="var(--orange-main)" opacity="0.8"/>
+            <polygon points="260,140 330,140 330,260 260,260" fill="var(--orange-main)" opacity="0.8"/>
+            <polygon points="170,240 240,240 240,350 170,350" fill="var(--orange-main)" opacity="0.8"/>
+            <polygon points="250,280 330,280 330,360 250,360" fill="var(--orange-main)" opacity="0.8"/>
+            <!-- Внутренний двор и офис -->
+            <circle cx="250" cy="250" r="14" fill="#fff" stroke="#ff6a00" stroke-width="2" />
+            <text x="250" y="254" font-family="'Chakra Petch'" font-size="10" font-weight="700" fill="#000" text-anchor="middle">OFFICE</text>
+          </svg>
+        `;
+      } else {
+        toggleBtn.textContent = 'План: Остров / Особняк';
+        location.reload();
+      }
+    }
+
+    // Инициализация при загрузке
+    renderList();
+  </script>
+</body>
+</html>
 
